@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Claude Chat</title>
+    <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/themes/prism.min.css">
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>Claude Chat</h1>
+            <div class="session-info">
+                <span id="session-id"></span>
+                <button id="clear-history" class="btn-secondary">Clear History</button>
+            </div>
+        </div>
+        
+        <div class="chat-container">
+            <div id="messages" class="messages"></div>
+            <div class="context-indicator" id="context-indicator">
+                <span>Context window: <span id="context-count">0</span> messages</span>
+            </div>
+        </div>
+        
+        <div class="input-container">
+            <textarea id="message-input" placeholder="Type your message..." rows="3"></textarea>
+            <button id="send-button" class="btn-primary">Send</button>
+        </div>
+        
+        <div class="settings">
+            <label>
+                Context Window Size:
+                <input type="number" id="context-size" min="5" max="50" value="20">
+            </label>
+        </div>
+    </div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/prism.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-javascript.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-python.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-go.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/marked/9.1.6/marked.min.js"></script>
+    <script src="app.js"></script>
+</body>
+</html>
