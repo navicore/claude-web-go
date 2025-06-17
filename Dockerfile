@@ -13,14 +13,12 @@ FROM rust:1.87 AS rust-builder
 
 WORKDIR /build
 
-# Install gamecode-mcp2 from crates.io or git
-# Option 1: From crates.io
-RUN cargo install gamecode-mcp2
+# Install gamecode-mcp2 from crates.io
+RUN cargo install gamecode-mcp2 || { echo "Failed to install gamecode-mcp2"; exit 1; }
 
-# Option 2: From git (uncomment if needed)
-# RUN git clone https://github.com/yourusername/gamecode-mcp2.git && \
-#     cd gamecode-mcp2 && \
-#     cargo build --release
+# Verify installation
+RUN ls -la /usr/local/cargo/bin/ && \
+    test -f /usr/local/cargo/bin/gamecode-mcp2 || { echo "gamecode-mcp2 not found after installation"; exit 1; }
 
 # Final stage
 FROM ubuntu:22.04
@@ -71,10 +69,11 @@ COPY web ./web
 COPY docker-entrypoint.sh .
 
 # Copy gamecode-mcp2 from rust builder
-COPY --from=rust-builder /usr/local/cargo/bin/gamecode-mcp2 /usr/local/bin/
+COPY --from=rust-builder /usr/local/cargo/bin/gamecode-mcp2 /usr/local/bin/gamecode-mcp2
 RUN chmod +x /usr/local/bin/gamecode-mcp2 && \
+    ls -la /usr/local/bin/gamecode-mcp2 && \
     which gamecode-mcp2 && \
-    gamecode-mcp2 --version || echo "gamecode-mcp2 installation check"
+    gamecode-mcp2 --version || { echo "gamecode-mcp2 installation check failed"; exit 1; }
 
 # Create tmp directory for Claude output files
 RUN mkdir -p /tmp && chmod 777 /tmp
@@ -86,9 +85,9 @@ ENV HOME=/home/app
 # Create directory for MCP configuration
 RUN mkdir -p /app/mcp && chmod 755 /app/mcp
 
-# Create a default tools.yaml file for gamecode-mcp2
-RUN echo -e "tools:\n  - name: example\n    description: Example tool" > /app/mcp/tools.yaml && \
-    cat /app/mcp/tools.yaml
+# Copy tools.yaml file
+COPY tools.yaml /app/mcp/tools.yaml
+RUN echo "Tools file created:" && cat /app/mcp/tools.yaml
 
 EXPOSE 8080
 

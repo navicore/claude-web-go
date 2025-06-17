@@ -19,8 +19,8 @@ docker run -p 8080:8080 \
   -e CLAUDE_CODE_USE_BEDROCK=1 \
   -e ANTHROPIC_MODEL=${ANTHROPIC_MODEL:-us.anthropic.claude-sonnet-4-20250514-v1:0} \
   -e ANTHROPIC_SMALL_FAST_MODEL=${ANTHROPIC_SMALL_FAST_MODEL:-anthropic.claude-3-5-haiku-20241022-v1:0} \
-  -e CLAUDE_ALLOWED_TOOLS=${CLAUDE_ALLOWED_TOOLS:-} \
+  -e CLAUDE_ALLOWED_TOOLS=${CLAUDE_ALLOWED_TOOLS:-"mcp__gamecode__add,mcp__gamecode__multiply,mcp__gamecode__create_plantuml_diagram"} \
   -e CLAUDE_DISALLOWED_TOOLS="${CLAUDE_DISALLOWED_TOOLS}" \
   -e CLAUDE_MCP_CONFIG="$CLAUDE_MCP_CONFIG" \
-  -e LOG_LEVEL=${LOG_LEVEL:-debug} \
+  -e LOG_LEVEL=${LOG_LEVEL:-warn} \
   claude-web-go

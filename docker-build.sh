@@ -2,7 +2,8 @@
 set -e
 
 echo "Building Docker image..."
-docker build -t claude-web-go .
+# Force rebuild to ensure tools.yaml changes are picked up
+docker build --no-cache -t claude-web-go .
 
 echo "Build complete! To run:"
 echo ""

@@ -190,6 +190,7 @@ func NewExecutor() (*Executor, error) {
 	testArgs = append(testArgs, "--disallowedTools", disallowedTools)
 	// MCP config support for test
 	if mcpConfig := os.Getenv("CLAUDE_MCP_CONFIG"); mcpConfig != "" {
+		logger.Log.WithField("mcp_config_test", mcpConfig).Debug("Adding MCP config to test command")
 		testArgs = append(testArgs, "--mcp-config", mcpConfig)
 	}
 	testArgs = append(testArgs, "-p", "Say hello")
@@ -298,6 +299,7 @@ func (e *Executor) Execute(prompt string, contextWindow []models.Message) (strin
 	args = append(args, "--disallowedTools", disallowedTools)
 	// MCP config support
 	if mcpConfig := os.Getenv("CLAUDE_MCP_CONFIG"); mcpConfig != "" {
+		logger.Log.WithField("mcp_config", mcpConfig).Debug("Adding MCP config to command")
 		args = append(args, "--mcp-config", mcpConfig)
 	}
 	args = append(args, "-p", fullPrompt)
