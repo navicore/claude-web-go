@@ -1,0 +1,86 @@
+package auth
+
+import (
+	"context"
+	"fmt"
+	"sync"
+	"time"
+
+	"github.com/aws/aws-sdk-go-v2/aws"
+	"github.com/aws/aws-sdk-go-v2/config"
+	"github.com/aws/aws-sdk-go-v2/credentials"
+	"github.com/aws/aws-sdk-go-v2/service/sts"
+)
+
+type SessionManager struct {
+	baseAccessKey    string
+	baseSecretKey    string
+	region           string
+	currentSession   *SessionCredentials
+	mu               sync.RWMutex
+}
+
+type SessionCredentials struct {
+	AccessKeyID     string
+	SecretAccessKey string
+	SessionToken    string
+	Expiration      time.Time
+}
+
+func NewSessionManager(accessKey, secretKey, region string) *SessionManager {
+	return &SessionManager{
+		baseAccessKey: accessKey,
+		baseSecretKey: secretKey,
+		region:        region,
+	}
+}
+
+func (sm *SessionManager) GetSessionCredentials() (*SessionCredentials, error) {
+	sm.mu.RLock()
+	if sm.currentSession != nil && time.Until(sm.currentSession.Expiration) > 5*time.Minute {
+		defer sm.mu.RUnlock()
+		return sm.currentSession, nil
+	}
+	sm.mu.RUnlock()
+
+	// Need to refresh
+	sm.mu.Lock()
+	defer sm.mu.Unlock()
+
+	// Double-check after acquiring write lock
+	if sm.currentSession != nil && time.Until(sm.currentSession.Expiration) > 5*time.Minute {
+		return sm.currentSession, nil
+	}
+
+	// Create STS client with base credentials
+	cfg, err := config.LoadDefaultConfig(context.TODO(),
+		config.WithRegion(sm.region),
+		config.WithCredentialsProvider(credentials.NewStaticCredentialsProvider(
+			sm.baseAccessKey,
+			sm.baseSecretKey,
+			"",
+		)),
+	)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create AWS config: %w", err)
+	}
+
+	stsClient := sts.NewFromConfig(cfg)
+
+	// Get session token (valid for 12 hours by default)
+	result, err := stsClient.GetSessionToken(context.TODO(), &sts.GetSessionTokenInput{
+		DurationSeconds: aws.Int32(43200), // 12 hours
+	})
+	if err != nil {
+		return nil, fmt.Errorf("failed to get session token: %w", err)
+	}
+
+	sm.currentSession = &SessionCredentials{
+		AccessKeyID:     *result.Credentials.AccessKeyId,
+		SecretAccessKey: *result.Credentials.SecretAccessKey,
+		SessionToken:    *result.Credentials.SessionToken,
+		Expiration:      *result.Credentials.Expiration,
+	}
+
+	return sm.currentSession, nil
+}

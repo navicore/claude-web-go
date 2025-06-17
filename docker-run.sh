@@ -12,5 +12,6 @@ docker run -p 8080:8080 \
   -e AWS_SECRET_ACCESS_KEY=$AWS_SECRET_ACCESS_KEY \
   -e AWS_REGION=${AWS_REGION:-us-east-1} \
   -e CLAUDE_CODE_USE_BEDROCK=true \
-  -e ANTHROPIC_MODEL=${ANTHROPIC_MODEL:-claude-3-5-sonnet-20241022} \
+  -e ANTHROPIC_MODEL=${ANTHROPIC_MODEL:-us.anthropic.claude-3-5-sonnet-20241022-v2:0} \
+  -e ANTHROPIC_SMALL_FAST_MODEL=${ANTHROPIC_SMALL_FAST_MODEL:-us.anthropic.claude-3-5-haiku-20241022-v1:0} \
   claude-web-go
