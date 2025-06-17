@@ -32,7 +32,15 @@ RUN apt-get update && apt-get install -y \
     unzip \
     default-jre \
     graphviz \
+    tzdata \
     && rm -rf /var/lib/apt/lists/*
+
+# Set timezone to UTC
+ENV TZ=UTC
+RUN ln -snf /usr/share/zoneinfo/$TZ /etc/localtime && echo $TZ > /etc/timezone
+
+# Install ntpdate for time sync
+RUN apt-get update && apt-get install -y ntpdate && rm -rf /var/lib/apt/lists/*
 
 # Install PlantUML
 RUN curl -L https://github.com/plantuml/plantuml/releases/download/v1.2024.3/plantuml-1.2024.3.jar -o /usr/local/bin/plantuml.jar && \
@@ -60,6 +68,7 @@ WORKDIR /app
 
 COPY --from=go-builder /app/claude-web-server .
 COPY web ./web
+COPY docker-entrypoint.sh .
 
 # Copy gamecode-mcp2 from rust builder
 COPY --from=rust-builder /usr/local/cargo/bin/gamecode-mcp2 /usr/local/bin/
@@ -83,4 +92,4 @@ RUN echo -e "tools:\n  - name: example\n    description: Example tool" > /app/mc
 
 EXPOSE 8080
 
-CMD ["./claude-web-server"]
+ENTRYPOINT ["./docker-entrypoint.sh"]

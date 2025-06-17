@@ -97,6 +97,7 @@ func NewExecutor() (*Executor, error) {
 		"AWS_SESSION_TOKEN_exists": os.Getenv("AWS_SESSION_TOKEN") != "",
 		"CLAUDE_CODE_USE_BEDROCK": os.Getenv("CLAUDE_CODE_USE_BEDROCK"),
 		"ANTHROPIC_MODEL": os.Getenv("ANTHROPIC_MODEL"),
+		"ANTHROPIC_SMALL_FAST_MODEL": os.Getenv("ANTHROPIC_SMALL_FAST_MODEL"),
 		"ANTHROPIC_API_KEY": os.Getenv("ANTHROPIC_API_KEY"),
 		"ANTHROPIC_ENDPOINT_URL": os.Getenv("ANTHROPIC_ENDPOINT_URL"),
 		"HOME": os.Getenv("HOME"),
@@ -146,14 +147,24 @@ func NewExecutor() (*Executor, error) {
 	simpleCmd := exec.CommandContext(simpleCtx, "claude", simpleArgs...)
 	simpleCmd.Env = os.Environ()
 	
+	// Log the exact command being run
+	logger.Log.WithFields(map[string]interface{}{
+		"command": "claude",
+		"args": simpleArgs,
+		"envCount": len(simpleCmd.Env),
+	}).Debug("Running simple test command")
+	
 	var simpleStdout, simpleStderr bytes.Buffer
 	simpleCmd.Stdout = &simpleStdout
 	simpleCmd.Stderr = &simpleStderr
 	
 	if err := simpleCmd.Run(); err != nil {
-		logger.Log.WithError(err).WithField("stderr", simpleStderr.String()).Warn("Simple test failed")
+		logger.Log.WithError(err).WithFields(map[string]interface{}{
+			"stderr": simpleStderr.String(),
+			"stdout": simpleStdout.String(),
+		}).Warn("Simple test failed")
 	} else {
-		logger.Log.Info("Simple test succeeded - MCP might be the issue")
+		logger.Log.WithField("output", simpleStdout.String()).Info("Simple test succeeded - MCP might be the issue")
 	}
 	
 	// Now test with full configuration
