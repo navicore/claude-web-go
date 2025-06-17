@@ -6,6 +6,7 @@ import (
 	"sync"
 	"time"
 
+	"claude-web-go/internal/logger"
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/config"
 	"github.com/aws/aws-sdk-go-v2/credentials"
@@ -39,6 +40,7 @@ func (sm *SessionManager) GetSessionCredentials() (*SessionCredentials, error) {
 	sm.mu.RLock()
 	if sm.currentSession != nil && time.Until(sm.currentSession.Expiration) > 5*time.Minute {
 		defer sm.mu.RUnlock()
+		logger.Log.Debug("Using cached session token")
 		return sm.currentSession, nil
 	}
 	sm.mu.RUnlock()
@@ -51,6 +53,8 @@ func (sm *SessionManager) GetSessionCredentials() (*SessionCredentials, error) {
 	if sm.currentSession != nil && time.Until(sm.currentSession.Expiration) > 5*time.Minute {
 		return sm.currentSession, nil
 	}
+
+	logger.Log.WithField("accessKeyPrefix", sm.baseAccessKey[:min(10, len(sm.baseAccessKey))]).Info("Getting new session token")
 
 	// Create STS client with base credentials
 	cfg, err := config.LoadDefaultConfig(context.TODO(),
@@ -68,12 +72,16 @@ func (sm *SessionManager) GetSessionCredentials() (*SessionCredentials, error) {
 	stsClient := sts.NewFromConfig(cfg)
 
 	// Get session token (valid for 12 hours by default)
+	logger.Log.Debug("Calling AWS STS GetSessionToken")
 	result, err := stsClient.GetSessionToken(context.TODO(), &sts.GetSessionTokenInput{
 		DurationSeconds: aws.Int32(43200), // 12 hours
 	})
 	if err != nil {
+		logger.Log.WithError(err).Error("Failed to get session token")
 		return nil, fmt.Errorf("failed to get session token: %w", err)
 	}
+	
+	logger.Log.Info("Successfully obtained session token")
 
 	sm.currentSession = &SessionCredentials{
 		AccessKeyID:     *result.Credentials.AccessKeyId,
@@ -84,3 +92,4 @@ func (sm *SessionManager) GetSessionCredentials() (*SessionCredentials, error) {
 
 	return sm.currentSession, nil
 }
+

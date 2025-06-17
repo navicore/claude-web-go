@@ -3,6 +3,8 @@ package auth
 import (
 	"fmt"
 	"os"
+	
+	"claude-web-go/internal/logger"
 )
 
 type AWSConfig struct {
@@ -63,17 +65,47 @@ func SetupEnvironment(config *AWSConfig) error {
 		}
 	}
 
-	os.Setenv("CLAUDE_CODE_USE_BEDROCK", "true")
+	os.Setenv("CLAUDE_CODE_USE_BEDROCK", "1")
+	
+	// Make sure ANTHROPIC_API_KEY is not set, as it might conflict
+	os.Unsetenv("ANTHROPIC_API_KEY")
 	
 	// Set model if not already set
 	if os.Getenv("ANTHROPIC_MODEL") == "" {
-		os.Setenv("ANTHROPIC_MODEL", "us.anthropic.claude-3-5-sonnet-20241022-v2:0")
+		os.Setenv("ANTHROPIC_MODEL", "us.anthropic.claude-sonnet-4-20250514-v1:0")
 	}
 	
 	// Set small/fast model if not already set
 	if os.Getenv("ANTHROPIC_SMALL_FAST_MODEL") == "" {
-		os.Setenv("ANTHROPIC_SMALL_FAST_MODEL", "us.anthropic.claude-3-5-haiku-20241022-v1:0")
+		os.Setenv("ANTHROPIC_SMALL_FAST_MODEL", "anthropic.claude-3-5-haiku-20241022-v1:0")
 	}
 
+	// Log the configuration for debugging
+	logger.Log.WithFields(map[string]interface{}{
+		"AWS_REGION": config.Region,
+		"AWS_ACCESS_KEY_ID_prefix": config.AccessKeyID[:min(10, len(config.AccessKeyID))],
+		"AWS_SESSION_TOKEN_exists": config.SessionToken != "",
+		"AWS_SESSION_TOKEN_prefix": getTokenPrefix(config.SessionToken),
+		"ANTHROPIC_MODEL": os.Getenv("ANTHROPIC_MODEL"),
+		"CLAUDE_CODE_USE_BEDROCK": os.Getenv("CLAUDE_CODE_USE_BEDROCK"),
+	}).Info("AWS environment configured")
+
 	return nil
+}
+
+func getTokenPrefix(token string) string {
+	if token == "" {
+		return "none"
+	}
+	if len(token) > 20 {
+		return token[:20] + "..."
+	}
+	return token
+}
+
+func min(a, b int) int {
+	if a < b {
+		return a
+	}
+	return b
 }
