@@ -38,3 +38,6 @@ Thumbs.db
 # Build artifacts
 /dist/
 /build/
+
+# MCP user configurations
+mcp/tools.yaml

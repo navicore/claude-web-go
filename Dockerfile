@@ -1,4 +1,4 @@
-FROM golang:1.21-alpine AS builder
+FROM golang:1.21-alpine AS go-builder
 
 WORKDIR /app
 
@@ -8,6 +8,19 @@ RUN go mod download
 COPY . .
 RUN CGO_ENABLED=0 GOOS=linux go build -o claude-web-server ./cmd/server
 
+# Rust builder stage for gamecode-mcp2
+FROM rust:1.87 AS rust-builder
+
+WORKDIR /build
+
+# Install gamecode-mcp2 from crates.io
+RUN cargo install gamecode-mcp2 || { echo "Failed to install gamecode-mcp2"; exit 1; }
+
+# Verify installation
+RUN ls -la /usr/local/cargo/bin/ && \
+    test -f /usr/local/cargo/bin/gamecode-mcp2 || { echo "gamecode-mcp2 not found after installation"; exit 1; }
+
+# Final stage
 FROM ubuntu:22.04
 
 # Install dependencies
@@ -17,7 +30,15 @@ RUN apt-get update && apt-get install -y \
     unzip \
     default-jre \
     graphviz \
+    tzdata \
     && rm -rf /var/lib/apt/lists/*
+
+# Set timezone to UTC
+ENV TZ=UTC
+RUN ln -snf /usr/share/zoneinfo/$TZ /etc/localtime && echo $TZ > /etc/timezone
+
+# Install ntpdate for time sync
+RUN apt-get update && apt-get install -y ntpdate && rm -rf /var/lib/apt/lists/*
 
 # Install PlantUML
 RUN curl -L https://github.com/plantuml/plantuml/releases/download/v1.2024.3/plantuml-1.2024.3.jar -o /usr/local/bin/plantuml.jar && \
@@ -43,8 +64,16 @@ RUN which claude && claude --version || echo "Claude installation check failed"
 
 WORKDIR /app
 
-COPY --from=builder /app/claude-web-server .
+COPY --from=go-builder /app/claude-web-server .
 COPY web ./web
+COPY docker-entrypoint.sh .
+
+# Copy gamecode-mcp2 from rust builder
+COPY --from=rust-builder /usr/local/cargo/bin/gamecode-mcp2 /usr/local/bin/gamecode-mcp2
+RUN chmod +x /usr/local/bin/gamecode-mcp2 && \
+    ls -la /usr/local/bin/gamecode-mcp2 && \
+    which gamecode-mcp2 && \
+    gamecode-mcp2 --version || { echo "gamecode-mcp2 installation check failed"; exit 1; }
 
 # Create tmp directory for Claude output files
 RUN mkdir -p /tmp && chmod 777 /tmp
@@ -53,6 +82,13 @@ RUN mkdir -p /tmp && chmod 777 /tmp
 RUN mkdir -p /home/app && chmod 755 /home/app
 ENV HOME=/home/app
 
+# Create directory for MCP configuration
+RUN mkdir -p /app/mcp && chmod 755 /app/mcp
+
+# Copy tools.yaml file
+COPY tools.yaml /app/mcp/tools.yaml
+RUN echo "Tools file created:" && cat /app/mcp/tools.yaml
+
 EXPOSE 8080
 
-CMD ["./claude-web-server"]
+ENTRYPOINT ["./docker-entrypoint.sh"]

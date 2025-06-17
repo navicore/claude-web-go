@@ -7,6 +7,11 @@ if [ -z "$AWS_ACCESS_KEY_ID" ] || [ -z "$AWS_SECRET_ACCESS_KEY" ]; then
     exit 1
 fi
 
+# Set default MCP config if not provided
+if [ -z "$CLAUDE_MCP_CONFIG" ]; then
+  CLAUDE_MCP_CONFIG='{"mcpServers":{"gamecode":{"command":"/usr/local/bin/gamecode-mcp2","args":["--tools-file","/app/mcp/tools.yaml"],"type":"stdio"}}}'
+fi
+
 docker run -p 8080:8080 \
   -e AWS_ACCESS_KEY_ID=$AWS_ACCESS_KEY_ID \
   -e AWS_SECRET_ACCESS_KEY=$AWS_SECRET_ACCESS_KEY \
@@ -14,5 +19,8 @@ docker run -p 8080:8080 \
   -e CLAUDE_CODE_USE_BEDROCK=1 \
   -e ANTHROPIC_MODEL=${ANTHROPIC_MODEL:-us.anthropic.claude-sonnet-4-20250514-v1:0} \
   -e ANTHROPIC_SMALL_FAST_MODEL=${ANTHROPIC_SMALL_FAST_MODEL:-anthropic.claude-3-5-haiku-20241022-v1:0} \
-  -e LOG_LEVEL=${LOG_LEVEL:-debug} \
+  -e CLAUDE_ALLOWED_TOOLS=${CLAUDE_ALLOWED_TOOLS:-"mcp__gamecode__add,mcp__gamecode__multiply,mcp__gamecode__create_plantuml_diagram"} \
+  -e CLAUDE_DISALLOWED_TOOLS="${CLAUDE_DISALLOWED_TOOLS}" \
+  -e CLAUDE_MCP_CONFIG="$CLAUDE_MCP_CONFIG" \
+  -e LOG_LEVEL=${LOG_LEVEL:-warn} \
   claude-web-go

@@ -1,0 +1,67 @@
+# gamecode-mcp2 built-in math tools
+tools:
+  - name: add
+    description: Add two numbers together
+    command: internal
+    args:
+      - name: a
+        description: First number to add
+        required: true
+        type: number
+        cli_flag: null
+      - name: b
+        description: Second number to add
+        required: true
+        type: number
+        cli_flag: null
+    internal_handler: add
+    example_output:
+      result: 8
+      operation: "addition"
+
+  - name: multiply
+    description: Multiply two numbers
+    command: internal
+    args:
+      - name: a
+        description: First number to multiply
+        required: true
+        type: number
+        cli_flag: null
+      - name: b
+        description: Second number to multiply
+        required: true
+        type: number
+        cli_flag: null
+    internal_handler: multiply
+    example_output:
+      result: 42
+      operation: "multiplication"
+
+  - name: create_plantuml_diagram
+    description: Create a PlantUML diagram from source text
+    command: internal
+    internal_handler: create_plantuml_diagram
+    args:
+      - name: filename
+        description: Base filename without extension (e.g., 'sequence')
+        required: true
+        type: string
+      - name: format
+        description: Output format (png or svg)
+        required: true
+        type: string
+      - name: content
+        description: PlantUML source code
+        required: true
+        type: string
+    validation:
+      filename:
+        deny_patterns:
+          - ".."
+          - "/"
+          - "~"
+      format:
+        allowed_values:
+          - "png"
+          - "svg"

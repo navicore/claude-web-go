@@ -8,6 +8,7 @@ export AWS_REGION="us-east-1"
 export CLAUDE_CODE_USE_BEDROCK="1"
 export ANTHROPIC_MODEL="us.anthropic.claude-sonnet-4-20250514-v1:0"
 export ANTHROPIC_SMALL_FAST_MODEL="anthropic.claude-3-5-haiku-20241022-v1:0"
+export LOG_LEVEL="${LOG_LEVEL:-warn}"
 
 echo "Starting Claude Web server with mock AWS credentials..."
 echo "Note: Claude CLI commands will fail without real AWS Bedrock credentials"

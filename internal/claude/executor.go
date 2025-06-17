@@ -66,6 +66,29 @@ func NewExecutor() (*Executor, error) {
 		logger.Log.WithField("version", strings.TrimSpace(string(output))).Info("Claude CLI version")
 	}
 
+	// Test gamecode-mcp2 if MCP is configured
+	if mcpConfig := os.Getenv("CLAUDE_MCP_CONFIG"); mcpConfig != "" {
+		logger.Log.Info("MCP configuration detected, checking gamecode-mcp2...")
+		mcpCmd := exec.Command("gamecode-mcp2", "--version")
+		if output, err := mcpCmd.CombinedOutput(); err != nil {
+			logger.Log.WithError(err).WithField("output", string(output)).Error("Failed to get gamecode-mcp2 version - MCP may not work")
+		} else {
+			logger.Log.WithField("version", strings.TrimSpace(string(output))).Info("gamecode-mcp2 version")
+		}
+		
+		// Check if tools.yaml exists
+		toolsPath := "/app/mcp/tools.yaml"
+		if stat, err := os.Stat(toolsPath); err != nil {
+			logger.Log.WithError(err).Error("Cannot access tools.yaml file")
+		} else {
+			logger.Log.WithFields(map[string]interface{}{
+				"path": toolsPath,
+				"size": stat.Size(),
+				"mode": stat.Mode(),
+			}).Debug("tools.yaml file found")
+		}
+	}
+
 	// Log environment variables that claude might need
 	logger.Log.WithFields(map[string]interface{}{
 		"AWS_REGION": os.Getenv("AWS_REGION"),
@@ -74,6 +97,7 @@ func NewExecutor() (*Executor, error) {
 		"AWS_SESSION_TOKEN_exists": os.Getenv("AWS_SESSION_TOKEN") != "",
 		"CLAUDE_CODE_USE_BEDROCK": os.Getenv("CLAUDE_CODE_USE_BEDROCK"),
 		"ANTHROPIC_MODEL": os.Getenv("ANTHROPIC_MODEL"),
+		"ANTHROPIC_SMALL_FAST_MODEL": os.Getenv("ANTHROPIC_SMALL_FAST_MODEL"),
 		"ANTHROPIC_API_KEY": os.Getenv("ANTHROPIC_API_KEY"),
 		"ANTHROPIC_ENDPOINT_URL": os.Getenv("ANTHROPIC_ENDPOINT_URL"),
 		"HOME": os.Getenv("HOME"),
@@ -108,6 +132,42 @@ func NewExecutor() (*Executor, error) {
 
 	// Test a simple claude command with timeout
 	logger.Log.Info("Testing claude command with full credentials...")
+	
+	// First test without MCP to isolate issues
+	logger.Log.Info("Testing without MCP config first...")
+	simpleCtx, simpleCancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer simpleCancel()
+	
+	simpleArgs := []string{}
+	if model := os.Getenv("ANTHROPIC_MODEL"); model != "" {
+		simpleArgs = append(simpleArgs, "--model", model)
+	}
+	simpleArgs = append(simpleArgs, "-p", "Say hello")
+	
+	simpleCmd := exec.CommandContext(simpleCtx, "claude", simpleArgs...)
+	simpleCmd.Env = os.Environ()
+	
+	// Log the exact command being run
+	logger.Log.WithFields(map[string]interface{}{
+		"command": "claude",
+		"args": simpleArgs,
+		"envCount": len(simpleCmd.Env),
+	}).Debug("Running simple test command")
+	
+	var simpleStdout, simpleStderr bytes.Buffer
+	simpleCmd.Stdout = &simpleStdout
+	simpleCmd.Stderr = &simpleStderr
+	
+	if err := simpleCmd.Run(); err != nil {
+		logger.Log.WithError(err).WithFields(map[string]interface{}{
+			"stderr": simpleStderr.String(),
+			"stdout": simpleStdout.String(),
+		}).Warn("Simple test failed")
+	} else {
+		logger.Log.WithField("output", simpleStdout.String()).Info("Simple test succeeded - MCP might be the issue")
+	}
+	
+	// Now test with full configuration
 	testCtx, testCancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer testCancel()
 
@@ -121,6 +181,17 @@ func NewExecutor() (*Executor, error) {
 	}
 	if allowedTools := os.Getenv("CLAUDE_ALLOWED_TOOLS"); allowedTools != "" {
 		testArgs = append(testArgs, "--allowedTools", allowedTools)
+	}
+	// Disallowed tools with default if not set
+	disallowedTools := os.Getenv("CLAUDE_DISALLOWED_TOOLS")
+	if disallowedTools == "" {
+		disallowedTools = "Bash,Glob,Grep,LS,Read,Edit,MultiEdit,Write,NotebookRead,NotebookEdit,WebFetch,TodoRead,TodoWrite,Task"
+	}
+	testArgs = append(testArgs, "--disallowedTools", disallowedTools)
+	// MCP config support for test
+	if mcpConfig := os.Getenv("CLAUDE_MCP_CONFIG"); mcpConfig != "" {
+		logger.Log.WithField("mcp_config_test", mcpConfig).Debug("Adding MCP config to test command")
+		testArgs = append(testArgs, "--mcp-config", mcpConfig)
 	}
 	testArgs = append(testArgs, "-p", "Say hello")
 
@@ -183,12 +254,8 @@ func (e *Executor) Execute(prompt string, contextWindow []models.Message) (strin
 		}).Debug("Session directory created successfully")
 	}
 
-	defer func() {
-		log.WithField("sessionDir", sessionDir).Debug("Cleaning up session directory")
-		if err := os.RemoveAll(sessionDir); err != nil {
-			log.WithError(err).Warn("Failed to remove session directory")
-		}
-	}()
+	// Don't cleanup immediately - let the system handle /tmp cleanup
+	// This allows the UI to fetch files without race conditions
 
 	fullPrompt := e.buildPromptWithContext(prompt, contextWindow)
 
@@ -219,6 +286,17 @@ func (e *Executor) Execute(prompt string, contextWindow []models.Message) (strin
 	}
 	if allowedTools := os.Getenv("CLAUDE_ALLOWED_TOOLS"); allowedTools != "" {
 		args = append(args, "--allowedTools", allowedTools)
+	}
+	// Disallowed tools with default if not set
+	disallowedTools := os.Getenv("CLAUDE_DISALLOWED_TOOLS")
+	if disallowedTools == "" {
+		disallowedTools = "Bash,Glob,Grep,LS,Read,Edit,MultiEdit,Write,NotebookRead,NotebookEdit,WebFetch,TodoRead,TodoWrite,Task"
+	}
+	args = append(args, "--disallowedTools", disallowedTools)
+	// MCP config support
+	if mcpConfig := os.Getenv("CLAUDE_MCP_CONFIG"); mcpConfig != "" {
+		logger.Log.WithField("mcp_config", mcpConfig).Debug("Adding MCP config to command")
+		args = append(args, "--mcp-config", mcpConfig)
 	}
 	args = append(args, "-p", fullPrompt)
 
@@ -294,7 +372,13 @@ func (e *Executor) Execute(prompt string, contextWindow []models.Message) (strin
 	}
 	if stdout.Len() > 0 {
 		log.WithField("outputLength", stdout.Len()).Debug("Claude stdout received")
-		log.Debugf("Claude output preview: %s...", stdout.String()[:min(200, stdout.Len())])
+		// Log full output if it contains debug or error info
+		outputStr := stdout.String()
+		if strings.Contains(outputStr, "[DEBUG]") || strings.Contains(outputStr, "[ERROR]") {
+			log.WithField("fullOutput", outputStr).Debug("Claude full output (contains debug/error)")
+		} else {
+			log.Debugf("Claude output preview: %s...", outputStr[:min(200, len(outputStr))])
+		}
 	}
 
 	if err != nil {
@@ -311,7 +395,18 @@ func (e *Executor) Execute(prompt string, contextWindow []models.Message) (strin
 
 	log.WithField("fileCount", len(files)).Info("Claude execution completed successfully")
 
-	return stdout.String(), files, nil
+	// Filter out debug lines from the output
+	output := stdout.String()
+	lines := strings.Split(output, "\n")
+	var filteredLines []string
+	for _, line := range lines {
+		if !strings.HasPrefix(line, "[DEBUG]") && !strings.HasPrefix(line, "[ERROR]") && strings.TrimSpace(line) != "" {
+			filteredLines = append(filteredLines, line)
+		}
+	}
+	filteredOutput := strings.Join(filteredLines, "\n")
+
+	return filteredOutput, files, nil
 }
 
 func min(a, b int) int {

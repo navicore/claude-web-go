@@ -38,10 +38,20 @@ func NewSessionManager(accessKey, secretKey, region string) *SessionManager {
 
 func (sm *SessionManager) GetSessionCredentials() (*SessionCredentials, error) {
 	sm.mu.RLock()
-	if sm.currentSession != nil && time.Until(sm.currentSession.Expiration) > 5*time.Minute {
-		defer sm.mu.RUnlock()
-		logger.Log.Debug("Using cached session token")
-		return sm.currentSession, nil
+	if sm.currentSession != nil {
+		timeUntilExpiry := time.Until(sm.currentSession.Expiration)
+		logger.Log.WithFields(map[string]interface{}{
+			"expiresIn": timeUntilExpiry.String(),
+			"expiration": sm.currentSession.Expiration.Format(time.RFC3339),
+			"currentTime": time.Now().Format(time.RFC3339),
+		}).Debug("Checking cached session token")
+		
+		if timeUntilExpiry > 5*time.Minute {
+			defer sm.mu.RUnlock()
+			logger.Log.Info("Using cached session token")
+			return sm.currentSession, nil
+		}
+		logger.Log.Info("Session token expired or expiring soon, will refresh")
 	}
 	sm.mu.RUnlock()
 
@@ -81,14 +91,18 @@ func (sm *SessionManager) GetSessionCredentials() (*SessionCredentials, error) {
 		return nil, fmt.Errorf("failed to get session token: %w", err)
 	}
 	
-	logger.Log.Info("Successfully obtained session token")
-
 	sm.currentSession = &SessionCredentials{
 		AccessKeyID:     *result.Credentials.AccessKeyId,
 		SecretAccessKey: *result.Credentials.SecretAccessKey,
 		SessionToken:    *result.Credentials.SessionToken,
 		Expiration:      *result.Credentials.Expiration,
 	}
+	
+	logger.Log.WithFields(map[string]interface{}{
+		"expiration": sm.currentSession.Expiration.Format(time.RFC3339),
+		"validFor": time.Until(sm.currentSession.Expiration).String(),
+		"accessKeyPrefix": sm.currentSession.AccessKeyID[:10] + "...",
+	}).Info("Successfully obtained new session token")
 
 	return sm.currentSession, nil
 }
