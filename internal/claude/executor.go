@@ -254,12 +254,8 @@ func (e *Executor) Execute(prompt string, contextWindow []models.Message) (strin
 		}).Debug("Session directory created successfully")
 	}
 
-	defer func() {
-		log.WithField("sessionDir", sessionDir).Debug("Cleaning up session directory")
-		if err := os.RemoveAll(sessionDir); err != nil {
-			log.WithError(err).Warn("Failed to remove session directory")
-		}
-	}()
+	// Don't cleanup immediately - let the system handle /tmp cleanup
+	// This allows the UI to fetch files without race conditions
 
 	fullPrompt := e.buildPromptWithContext(prompt, contextWindow)
 
@@ -376,7 +372,13 @@ func (e *Executor) Execute(prompt string, contextWindow []models.Message) (strin
 	}
 	if stdout.Len() > 0 {
 		log.WithField("outputLength", stdout.Len()).Debug("Claude stdout received")
-		log.Debugf("Claude output preview: %s...", stdout.String()[:min(200, stdout.Len())])
+		// Log full output if it contains debug or error info
+		outputStr := stdout.String()
+		if strings.Contains(outputStr, "[DEBUG]") || strings.Contains(outputStr, "[ERROR]") {
+			log.WithField("fullOutput", outputStr).Debug("Claude full output (contains debug/error)")
+		} else {
+			log.Debugf("Claude output preview: %s...", outputStr[:min(200, len(outputStr))])
+		}
 	}
 
 	if err != nil {
@@ -393,7 +395,18 @@ func (e *Executor) Execute(prompt string, contextWindow []models.Message) (strin
 
 	log.WithField("fileCount", len(files)).Info("Claude execution completed successfully")
 
-	return stdout.String(), files, nil
+	// Filter out debug lines from the output
+	output := stdout.String()
+	lines := strings.Split(output, "\n")
+	var filteredLines []string
+	for _, line := range lines {
+		if !strings.HasPrefix(line, "[DEBUG]") && !strings.HasPrefix(line, "[ERROR]") && strings.TrimSpace(line) != "" {
+			filteredLines = append(filteredLines, line)
+		}
+	}
+	filteredOutput := strings.Join(filteredLines, "\n")
+
+	return filteredOutput, files, nil
 }
 
 func min(a, b int) int {
