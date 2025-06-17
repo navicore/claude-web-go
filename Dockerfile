@@ -15,7 +15,14 @@ RUN apt-get update && apt-get install -y \
     ca-certificates \
     curl \
     unzip \
+    default-jre \
+    graphviz \
     && rm -rf /var/lib/apt/lists/*
+
+# Install PlantUML
+RUN curl -L https://github.com/plantuml/plantuml/releases/download/v1.2024.3/plantuml-1.2024.3.jar -o /usr/local/bin/plantuml.jar && \
+    echo '#!/bin/bash\njava -jar /usr/local/bin/plantuml.jar "$@"' > /usr/local/bin/plantuml && \
+    chmod +x /usr/local/bin/plantuml
 
 # Install AWS CLI for debugging
 RUN curl "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o "awscliv2.zip" && \

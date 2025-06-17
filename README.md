@@ -49,6 +49,7 @@ export AWS_REGION="us-west-2"  # or your preferred region
 | `AWS_REGION` | AWS region for Bedrock | us-west-2 |
 | `CLAUDE_CODE_USE_BEDROCK` | Enable Bedrock mode | 1 |
 | `ANTHROPIC_MODEL` | Claude model to use | us.anthropic.claude-sonnet-4-20250514-v1:0 |
+| `CLAUDE_ALLOWED_TOOLS` | Tools Claude can use (e.g., "Task") | "" (empty - no tools) |
 | `LOG_LEVEL` | Logging verbosity | info |
 
 ## How It Works

@@ -119,6 +119,9 @@ func NewExecutor() (*Executor, error) {
 	if model := os.Getenv("ANTHROPIC_MODEL"); model != "" {
 		testArgs = append(testArgs, "--model", model)
 	}
+	if allowedTools := os.Getenv("CLAUDE_ALLOWED_TOOLS"); allowedTools != "" {
+		testArgs = append(testArgs, "--allowedTools", allowedTools)
+	}
 	testArgs = append(testArgs, "-p", "Say hello")
 
 	logger.Log.WithField("testArgs", testArgs).Debug("Running test command")
@@ -213,6 +216,9 @@ func (e *Executor) Execute(prompt string, contextWindow []models.Message) (strin
 	}
 	if model := os.Getenv("ANTHROPIC_MODEL"); model != "" {
 		args = append(args, "--model", model)
+	}
+	if allowedTools := os.Getenv("CLAUDE_ALLOWED_TOOLS"); allowedTools != "" {
+		args = append(args, "--allowedTools", allowedTools)
 	}
 	args = append(args, "-p", fullPrompt)
 
