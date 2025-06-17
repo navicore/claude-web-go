@@ -108,6 +108,36 @@ aws bedrock list-foundation-models --region $AWS_REGION
 4. **Streaming Responses**: Implement SSE for real-time Claude output streaming
 5. **Authentication**: Add user authentication for multi-tenant deployments
 
+## Recent Updates
+
+### MCP Integration (gamecode-mcp2)
+- Added multi-stage Docker build to include gamecode-mcp2 Rust MCP server
+- MCP configuration passed inline via CLAUDE_MCP_CONFIG environment variable
+- Default tools.yaml created at /app/mcp/tools.yaml in container
+- Example MCP config format:
+```json
+{
+  "mcpServers": {
+    "gamecode": {
+      "command": "/usr/local/bin/gamecode-mcp2",
+      "args": ["--tools-file", "/app/mcp/tools.yaml"],
+      "type": "stdio"
+    }
+  }
+}
+```
+
+### PlantUML Support
+- PlantUML added to Docker image for diagram generation
+- Requires Java runtime (included in Docker image)
+- Claude can use PlantUML via CLAUDE_ALLOWED_TOOLS environment variable
+
+### Disallowed Tools Support
+- Added --disallowedTools parameter support via CLAUDE_DISALLOWED_TOOLS env var
+- Default disallowed tools prevent Claude from attempting filesystem operations
+- Default list: "Bash,Glob,Grep,LS,Read,Edit,MultiEdit,Write,NotebookRead,NotebookEdit,WebFetch,TodoRead,TodoWrite,Task"
+- This helps Claude understand upfront which tools it cannot use, avoiding wasted attempts
+
 ## Important Notes
 
 - Always use `CLAUDE_CODE_USE_BEDROCK=1` (not "true") for Bedrock mode
@@ -115,3 +145,4 @@ aws bedrock list-foundation-models --region $AWS_REGION
 - File cleanup happens automatically - don't rely on files persisting
 - Context window size directly impacts token usage and costs
 - Claude CLI must be installed in the Docker image via npm
+- Model IDs differ between cross-region and region-specific models (watch the "us." prefix)

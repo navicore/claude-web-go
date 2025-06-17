@@ -66,6 +66,29 @@ func NewExecutor() (*Executor, error) {
 		logger.Log.WithField("version", strings.TrimSpace(string(output))).Info("Claude CLI version")
 	}
 
+	// Test gamecode-mcp2 if MCP is configured
+	if mcpConfig := os.Getenv("CLAUDE_MCP_CONFIG"); mcpConfig != "" {
+		logger.Log.Info("MCP configuration detected, checking gamecode-mcp2...")
+		mcpCmd := exec.Command("gamecode-mcp2", "--version")
+		if output, err := mcpCmd.CombinedOutput(); err != nil {
+			logger.Log.WithError(err).WithField("output", string(output)).Error("Failed to get gamecode-mcp2 version - MCP may not work")
+		} else {
+			logger.Log.WithField("version", strings.TrimSpace(string(output))).Info("gamecode-mcp2 version")
+		}
+		
+		// Check if tools.yaml exists
+		toolsPath := "/app/mcp/tools.yaml"
+		if stat, err := os.Stat(toolsPath); err != nil {
+			logger.Log.WithError(err).Error("Cannot access tools.yaml file")
+		} else {
+			logger.Log.WithFields(map[string]interface{}{
+				"path": toolsPath,
+				"size": stat.Size(),
+				"mode": stat.Mode(),
+			}).Debug("tools.yaml file found")
+		}
+	}
+
 	// Log environment variables that claude might need
 	logger.Log.WithFields(map[string]interface{}{
 		"AWS_REGION": os.Getenv("AWS_REGION"),
@@ -108,6 +131,32 @@ func NewExecutor() (*Executor, error) {
 
 	// Test a simple claude command with timeout
 	logger.Log.Info("Testing claude command with full credentials...")
+	
+	// First test without MCP to isolate issues
+	logger.Log.Info("Testing without MCP config first...")
+	simpleCtx, simpleCancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer simpleCancel()
+	
+	simpleArgs := []string{}
+	if model := os.Getenv("ANTHROPIC_MODEL"); model != "" {
+		simpleArgs = append(simpleArgs, "--model", model)
+	}
+	simpleArgs = append(simpleArgs, "-p", "Say hello")
+	
+	simpleCmd := exec.CommandContext(simpleCtx, "claude", simpleArgs...)
+	simpleCmd.Env = os.Environ()
+	
+	var simpleStdout, simpleStderr bytes.Buffer
+	simpleCmd.Stdout = &simpleStdout
+	simpleCmd.Stderr = &simpleStderr
+	
+	if err := simpleCmd.Run(); err != nil {
+		logger.Log.WithError(err).WithField("stderr", simpleStderr.String()).Warn("Simple test failed")
+	} else {
+		logger.Log.Info("Simple test succeeded - MCP might be the issue")
+	}
+	
+	// Now test with full configuration
 	testCtx, testCancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer testCancel()
 
@@ -121,6 +170,16 @@ func NewExecutor() (*Executor, error) {
 	}
 	if allowedTools := os.Getenv("CLAUDE_ALLOWED_TOOLS"); allowedTools != "" {
 		testArgs = append(testArgs, "--allowedTools", allowedTools)
+	}
+	// Disallowed tools with default if not set
+	disallowedTools := os.Getenv("CLAUDE_DISALLOWED_TOOLS")
+	if disallowedTools == "" {
+		disallowedTools = "Bash,Glob,Grep,LS,Read,Edit,MultiEdit,Write,NotebookRead,NotebookEdit,WebFetch,TodoRead,TodoWrite,Task"
+	}
+	testArgs = append(testArgs, "--disallowedTools", disallowedTools)
+	// MCP config support for test
+	if mcpConfig := os.Getenv("CLAUDE_MCP_CONFIG"); mcpConfig != "" {
+		testArgs = append(testArgs, "--mcp-config", mcpConfig)
 	}
 	testArgs = append(testArgs, "-p", "Say hello")
 
@@ -219,6 +278,16 @@ func (e *Executor) Execute(prompt string, contextWindow []models.Message) (strin
 	}
 	if allowedTools := os.Getenv("CLAUDE_ALLOWED_TOOLS"); allowedTools != "" {
 		args = append(args, "--allowedTools", allowedTools)
+	}
+	// Disallowed tools with default if not set
+	disallowedTools := os.Getenv("CLAUDE_DISALLOWED_TOOLS")
+	if disallowedTools == "" {
+		disallowedTools = "Bash,Glob,Grep,LS,Read,Edit,MultiEdit,Write,NotebookRead,NotebookEdit,WebFetch,TodoRead,TodoWrite,Task"
+	}
+	args = append(args, "--disallowedTools", disallowedTools)
+	// MCP config support
+	if mcpConfig := os.Getenv("CLAUDE_MCP_CONFIG"); mcpConfig != "" {
+		args = append(args, "--mcp-config", mcpConfig)
 	}
 	args = append(args, "-p", fullPrompt)
 

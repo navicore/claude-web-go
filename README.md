@@ -50,7 +50,22 @@ export AWS_REGION="us-west-2"  # or your preferred region
 | `CLAUDE_CODE_USE_BEDROCK` | Enable Bedrock mode | 1 |
 | `ANTHROPIC_MODEL` | Claude model to use | us.anthropic.claude-sonnet-4-20250514-v1:0 |
 | `CLAUDE_ALLOWED_TOOLS` | Tools Claude can use (e.g., "Task") | "" (empty - no tools) |
+| `CLAUDE_DISALLOWED_TOOLS` | Tools Claude cannot use | See default list below |
+| `CLAUDE_MCP_CONFIG` | MCP server configuration (JSON) | See MCP section below |
 | `LOG_LEVEL` | Logging verbosity | info |
+
+### Default Disallowed Tools
+
+By default, the following tools are disallowed to prevent Claude from attempting filesystem operations:
+- Bash, Glob, Grep, LS, Read, Edit, MultiEdit, Write
+- NotebookRead, NotebookEdit
+- WebFetch, TodoRead, TodoWrite, Task
+
+To customize this list:
+```bash
+export CLAUDE_DISALLOWED_TOOLS="Bash,Write,Edit"  # Only disallow specific tools
+export CLAUDE_DISALLOWED_TOOLS=""  # Allow all tools (not recommended)
+```
 
 ## How It Works
 
@@ -115,6 +130,29 @@ Run with `LOG_LEVEL=debug` for detailed logging:
 LOG_LEVEL=debug ./docker-run.sh
 ```
 
+## MCP (Model Context Protocol) Configuration
+
+The Docker image includes gamecode-mcp2 for controlled tool access. By default, it's configured with:
+
+```json
+{
+  "mcpServers": {
+    "gamecode": {
+      "command": "/usr/local/bin/gamecode-mcp2",
+      "args": ["--tools-file", "/app/mcp/tools.yaml"],
+      "type": "stdio"
+    }
+  }
+}
+```
+
+To use a custom MCP configuration:
+
+```bash
+export CLAUDE_MCP_CONFIG='{"mcpServers":{"gamecode":{"command":"/usr/local/bin/gamecode-mcp2","args":["--tools-file","/custom/tools.yaml"],"type":"stdio"}}}'
+./docker-run.sh
+```
+
 ## Architecture
 
 - **Backend**: Go server that wraps Claude CLI
@@ -122,3 +160,4 @@ LOG_LEVEL=debug ./docker-run.sh
 - **Authentication**: AWS STS for temporary credentials
 - **File Storage**: Temporary directories with automatic cleanup
 - **Context**: Client-side storage with server-side prompt building
+- **MCP Integration**: gamecode-mcp2 for tool control
