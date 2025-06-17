@@ -139,19 +139,14 @@ The Docker image includes gamecode-mcp2 for controlled tool access. By default, 
   "mcpServers": {
     "gamecode": {
       "command": "/usr/local/bin/gamecode-mcp2",
-      "args": ["--tools-file", "/app/mcp/tools.yaml"],
+      "args": ["--tools-file", "/app/tools.yaml"],
       "type": "stdio"
     }
   }
 }
 ```
 
-To use a custom MCP configuration:
-
-```bash
-export CLAUDE_MCP_CONFIG='{"mcpServers":{"gamecode":{"command":"/usr/local/bin/gamecode-mcp2","args":["--tools-file","/custom/tools.yaml"],"type":"stdio"}}}'
-./docker-run.sh
-```
+To customize the available tools, edit `tools.yaml` before building the Docker image.
 
 ## Architecture
 

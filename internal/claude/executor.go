@@ -77,7 +77,7 @@ func NewExecutor() (*Executor, error) {
 		}
 		
 		// Check if tools.yaml exists
-		toolsPath := "/app/mcp/tools.yaml"
+		toolsPath := "/app/tools.yaml"
 		if stat, err := os.Stat(toolsPath); err != nil {
 			logger.Log.WithError(err).Error("Cannot access tools.yaml file")
 		} else {

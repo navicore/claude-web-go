@@ -9,7 +9,7 @@ fi
 
 # Set default MCP config if not provided
 if [ -z "$CLAUDE_MCP_CONFIG" ]; then
-  CLAUDE_MCP_CONFIG='{"mcpServers":{"gamecode":{"command":"/usr/local/bin/gamecode-mcp2","args":["--tools-file","/app/mcp/tools.yaml"],"type":"stdio"}}}'
+  CLAUDE_MCP_CONFIG='{"mcpServers":{"gamecode":{"command":"/usr/local/bin/gamecode-mcp2","args":["--tools-file","/app/tools.yaml"],"type":"stdio"}}}'
 fi
 
 docker run -p 8080:8080 \

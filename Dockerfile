@@ -1,4 +1,4 @@
-FROM golang:1.21-alpine AS go-builder
+FROM golang:1.24-alpine AS go-builder
 
 WORKDIR /app
 
@@ -82,12 +82,9 @@ RUN mkdir -p /tmp && chmod 777 /tmp
 RUN mkdir -p /home/app && chmod 755 /home/app
 ENV HOME=/home/app
 
-# Create directory for MCP configuration
-RUN mkdir -p /app/mcp && chmod 755 /app/mcp
-
 # Copy tools.yaml file
-COPY tools.yaml /app/mcp/tools.yaml
-RUN echo "Tools file created:" && cat /app/mcp/tools.yaml
+COPY tools.yaml /app/tools.yaml
+RUN echo "Tools file created:" && cat /app/tools.yaml
 
 EXPOSE 8080
 
