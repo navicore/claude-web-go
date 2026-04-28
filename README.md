@@ -1,3 +1,8 @@
+<!-- ghmig:moved -->
+> **This repository has moved to [https://git.navicore.tech/navicore/claude-web-go](https://git.navicore.tech/navicore/claude-web-go).**
+>
+> The GitHub copy is archived and no longer maintained.
+
 # Claude Web Go
 
 A web-based chat application that provides a clean interface for interacting with Claude via AWS Bedrock. Each interaction runs Claude CLI in one-shot mode with context maintained in the browser's local storage.
